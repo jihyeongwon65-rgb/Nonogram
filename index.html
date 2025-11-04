@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>네모네모 로직 🐣</title>
+<style>
+  :root {
+    --bg: #fffdf9;
+    --cell: #fff;
+    --line: #e0dcd4;
+    --filled: #8cc0de;
+    --cross: #ffb6b6;
+    --text: #333;
+    --accent: #ffd86b;
+    --shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    font-family: "Noto Sans KR", sans-serif;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+  }
+  h1 {
+    font-size: 2em;
+    margin-bottom: 10px;
+  }
+  .subtitle {
+    color: #777;
+    margin-bottom: 20px;
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  button, select {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: var(--shadow);
+    transition: background 0.3s;
+  }
+  button:hover, select:hover {
+    background: #ffe693;
+  }
+  select {
+    appearance: none;
+  }
+
+  #board {
+    display: grid;
+    border: 2px solid var(--line);
+    background: var(--cell);
+    box-shadow: var(--shadow);
+  }
+
+  .cell {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    user-select: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .cell.filled {
+    background: var(--filled);
+  }
+  .cell.cross {
+    color: var(--cross);
+  }
+
+  .hint-row, .hint-col {
+    font-size: 12px;
+    color: #555;
+    text-align: center;
+  }
+
+  #status {
+    margin-top: 20px;
+    font-weight: bold;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+  <h1>네모네모 로직 🐣</h1>
+  <div class="subtitle">퍼즐을 완성해보세요!</div>
+
+  <div class="controls">
+    <select id="difficulty">
+      <option value="easy">난이도: 하</option>
+      <option value="medium">난이도: 중</option>
+      <option value="hard">난이도: 상</option>
+    </select>
+    <button id="newGame">새 게임</button>
+    <button id="check">정답 확인</button>
+    <button id="reset">초기화</button>
+  </div>
+
+  <div id="board"></div>
+  <div id="status"></div>
+
+<script>
+/* 🎮 네모네모 로직 게임 */
+const boardEl = document.getElementById('board');
+const difficultyEl = document.getElementById('difficulty');
+const statusEl = document.getElementById('status');
+
+let size = 5;
+let solution = [];
+let player = [];
+
+function generatePuzzle(diff){
+  // 난이도별 크기
+  if(diff === 'easy') size = 5;
+  else if(diff === 'medium') size = 8;
+  else size = 10;
+
+  // 랜덤한 퍼즐 생성
+  solution = Array.from({length:size}, () =>
+    Array.from({length:size}, () => Math.random() > 0.6 ? 1 : 0)
+  );
+  player = Array.from({length:size}, ()=> Array(size).fill(0));
+
+  drawBoard();
+}
+
+function drawBoard(){
+  boardEl.innerHTML = '';
+  boardEl.style.gridTemplateColumns = `repeat(${size}, 28px)`;
+  boardEl.style.gridTemplateRows = `repeat(${size}, 28px)`;
+  for(let y=0; y<size; y++){
+    for(let x=0; x<size; x++){
+      const cell = document.createElement('div');
+      cell.classList.add('cell');
+      cell.dataset.x = x;
+      cell.dataset.y = y;
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function render(){
+  document.querySelectorAll('.cell').forEach(cell=>{
+    const x = +cell.dataset.x, y = +cell.dataset.y;
+    cell.classList.remove('filled','cross');
+    cell.textContent = '';
+    if(player[y][x] === 1) cell.classList.add('filled');
+    if(player[y][x] === 2) cell.textContent = '✕', cell.classList.add('cross');
+  });
+}
+
+boardEl.addEventListener('click', e=>{
+  if(!e.target.classList.contains('cell')) return;
+  const x = +e.target.dataset.x;
+  const y = +e.target.dataset.y;
+  // 왼쪽 클릭 = 색칠
+  player[y][x] = (player[y][x] === 1) ? 0 : 1;
+  render();
+});
+
+boardEl.addEventListener('contextmenu', e=>{
+  e.preventDefault();
+  if(!e.target.classList.contains('cell')) return;
+  const x = +e.target.dataset.x;
+  const y = +e.target.dataset.y;
+  // 오른쪽 클릭 = X표
+  player[y][x] = (player[y][x] === 2) ? 0 : 2;
+  render();
+});
+
+// 모바일 더블탭 → X표시
+let lastTap = 0;
+boardEl.addEventListener('touchend', e=>{
+  const now = Date.now();
+  if(now - lastTap < 300){
+    const target = document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    if(target && target.classList.contains('cell')){
+      const x = +target.dataset.x, y = +target.dataset.y;
+      player[y][x] = (player[y][x] === 2) ? 0 : 2;
+      render();
+    }
+  }
+  lastTap = now;
+});
+
+// 버튼 기능
+document.getElementById('newGame').addEventListener('click', ()=>{
+  generatePuzzle(difficultyEl.value);
+  statusEl.textContent = '새 퍼즐이 생성되었습니다!';
+});
+document.getElementById('reset').addEventListener('click', ()=>{
+  player = Array.from({length:size}, ()=> Array(size).fill(0));
+  render();
+  statusEl.textContent = '초기화되었습니다!';
+});
+document.getElementById('check').addEventListener('click', ()=>{
+  let correct = true;
+  for(let y=0;y<size;y++){
+    for(let x=0;x<size;x++){
+      if(player[y][x]===1 && solution[y][x]!==1) correct=false;
+      if(player[y][x]!==1 && solution[y][x]===1) correct=false;
+    }
+  }
+  statusEl.textContent = correct ? '🎉 정답입니다!' : '😅 아직 완성되지 않았어요!';
+});
+
+// 초기 실행
+generatePuzzle('easy');
+render();
+</script>
+</body>
+</html>
